@@ -14,7 +14,8 @@ var gDebugtrace *Debugtrace
 
 type LOG_LEVE int32
 
-const LogBuffLen int = 2048
+const LogBuffLen int = 1024 * 1024
+const BuffWater int = 1024 * 3
 const FlushGap time.Duration = 2 //向文件输入日志间隔秒
 
 const (
@@ -31,6 +32,10 @@ func SetLogger(path, appName string, OutLevel LOG_LEVE) error {
 
 	gDebugtrace = &Debugtrace{}
 	return gDebugtrace.Init(path, appName, OutLevel)
+}
+
+func CloseLogger() {
+	gDebugtrace.Destroy()
 }
 
 func DEBUG(msg ...interface{}) {
@@ -66,13 +71,13 @@ func FATAL(msg ...interface{}) {
 
 type Debugtrace struct {
 	log.Logger
-	mLogBuf       *bufio.Writer
-	mLogFD        *os.File
 	mLastBuildDay int
 	mLogLevel     LOG_LEVE
 	mLogPath      string
 	mLogAppName   string
 	mLockBuf      sync.Mutex
+	mLogFD        *os.File
+	mLogBuf       *bufio.Writer
 }
 
 func (d *Debugtrace) Init(path, appName string, level LOG_LEVE) error {
@@ -98,8 +103,8 @@ func (d *Debugtrace) ProceLog() {
 func (d *Debugtrace) rebuildLogFile() {
 	Today := time.Now().Day()
 	if d.mLastBuildDay != Today {
-		fmt.Println("Rebuild log fileing. Todat:", Today, "; last day:", d.mLastBuildDay)
 		if d.mLastBuildDay > 0 {
+			d.Println("Rebuild log fileing. Todat:", Today, "; last day:", d.mLastBuildDay)
 			if err := d.buildLogFile(); err != nil {
 				d.Println("Rebuild log file failed, Reason: ", err)
 				return
@@ -137,13 +142,24 @@ func (d *Debugtrace) createLogFile(path, appName string) string {
 		currTime.Day(), currTime.Hour(), currTime.Minute(), currTime.Second())
 }
 func (d *Debugtrace) CheckBuffWater() {
-	if d.mLogBuf.Available() <= 100 {
+	if d.mLogBuf.Available() <= BuffWater {
 		d.UpToFile()
 	}
 }
 
 func (d *Debugtrace) UpToFile() {
 	d.mLockBuf.Lock()
-	d.mLogBuf.Flush()
+	if d.mLogBuf.Buffered() > 0 {
+		if err := d.mLogBuf.Flush(); err != nil {
+			d.mLogBuf.Reset(d.mLogFD)
+			log.Println("ERROR: ", err, "; Water:", d.mLogBuf.Buffered())
+		}
+
+	}
 	d.mLockBuf.Unlock()
+}
+
+func (d *Debugtrace) Destroy() {
+	d.UpToFile()
+	d.mLogFD.Close()
 }
