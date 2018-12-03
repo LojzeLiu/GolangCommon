@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -13,8 +14,8 @@ var gDebugtrace *Debugtrace
 
 type LOG_LEVE int32
 
-const LogBuffLen int = 1024
-const FlushGap time.Duration = 5
+const LogBuffLen int = 2048
+const FlushGap time.Duration = 2 //向文件输入日志间隔秒
 
 const (
 	FATAL_LEVE LOG_LEVE = iota
@@ -34,6 +35,7 @@ func SetLogger(path, appName string, OutLevel LOG_LEVE) error {
 
 func DEBUG(msg ...interface{}) {
 	if gDebugtrace.mLogLevel >= DEBUG_LEVE {
+		gDebugtrace.CheckBuffWater()
 		gDebugtrace.SetPrefix("Debug:")
 		gDebugtrace.Println(msg...)
 	}
@@ -41,6 +43,7 @@ func DEBUG(msg ...interface{}) {
 
 func WARN(msg ...interface{}) {
 	if gDebugtrace.mLogLevel >= WARN_LEVE {
+		gDebugtrace.CheckBuffWater()
 		gDebugtrace.SetPrefix("Warn:")
 		gDebugtrace.Println(msg...)
 	}
@@ -50,12 +53,15 @@ func ERROR(msg ...interface{}) {
 	if gDebugtrace.mLogLevel >= ERROR_LEVE {
 		gDebugtrace.SetPrefix("Error:")
 		gDebugtrace.Println(msg...)
+		gDebugtrace.UpToFile()
 	}
 }
 
 func FATAL(msg ...interface{}) {
 	gDebugtrace.SetPrefix("Fatal:")
 	gDebugtrace.Println(msg...)
+	gDebugtrace.UpToFile()
+	gDebugtrace.Fatal(msg...)
 }
 
 type Debugtrace struct {
@@ -66,6 +72,7 @@ type Debugtrace struct {
 	mLogLevel     LOG_LEVE
 	mLogPath      string
 	mLogAppName   string
+	mLockBuf      sync.Mutex
 }
 
 func (d *Debugtrace) Init(path, appName string, level LOG_LEVE) error {
@@ -82,7 +89,7 @@ func (d *Debugtrace) Init(path, appName string, level LOG_LEVE) error {
 
 func (d *Debugtrace) ProceLog() {
 	for {
-		d.mLogBuf.Flush()
+		d.UpToFile()
 		d.rebuildLogFile()
 		time.Sleep(time.Millisecond * 1000 * FlushGap)
 	}
@@ -128,4 +135,15 @@ func (d *Debugtrace) createLogFile(path, appName string) string {
 	currTime := time.Now()
 	return fmt.Sprintf("%s/%s-%d-%d%02d%02d%02d%02d%02d.log", path, appName, os.Getegid(), currTime.Year(), currTime.Month(),
 		currTime.Day(), currTime.Hour(), currTime.Minute(), currTime.Second())
+}
+func (d *Debugtrace) CheckBuffWater() {
+	if d.mLogBuf.Available() <= 100 {
+		d.UpToFile()
+	}
+}
+
+func (d *Debugtrace) UpToFile() {
+	d.mLockBuf.Lock()
+	d.mLogBuf.Flush()
+	d.mLockBuf.Unlock()
 }

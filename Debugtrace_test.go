@@ -17,11 +17,11 @@ func TestTRACE(t *testing.T) {
 	DEBUG("Test logger file")
 	WARN("Test logger file 2")
 	ERROR("Test logger file 3")
-	FATAL("Test logger file 4")
-	for i := 0; i < 10; i++ {
-		time.Sleep(time.Millisecond * 1000)
-		DEBUG(time.Now())
+	//FATAL("Test logger file 4")
+	for i := 0; i < 1000; i++ {
+		time.Sleep(time.Millisecond * 10)
+		DEBUG(i)
 	}
 	DEBUG("End.")
-	time.Sleep(time.Millisecond * 1000 * 30)
+	time.Sleep(time.Millisecond * 1000 * 10)
 }
