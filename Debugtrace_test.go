@@ -14,8 +14,14 @@ func TestInit(t *testing.T) {
 
 func TestTRACE(t *testing.T) {
 	SetLogger("./log/", "testapp", DEBUG_LEVE)
-	TRACE(DEBUG_LEVE, "This is test log,Level: ", DEBUG_LEVE)
-	TRACE(WARN_LEVE, "This is test log,Level: ", WARN_LEVE)
-	TRACE(ERROR_LEVE, "This is test log,Level: ", ERROR_LEVE)
-	time.Sleep(240)
+	DEBUG("Test logger file")
+	WARN("Test logger file 2")
+	ERROR("Test logger file 3")
+	FATAL("Test logger file 4")
+	for i := 0; i < 10; i++ {
+		time.Sleep(time.Millisecond * 1000)
+		DEBUG(time.Now())
+	}
+	DEBUG("End.")
+	time.Sleep(time.Millisecond * 1000 * 30)
 }

@@ -14,6 +14,7 @@ var gDebugtrace *Debugtrace
 type LOG_LEVE int32
 
 const LogBuffLen int = 1024
+const FlushGap time.Duration = 5
 
 const (
 	FATAL_LEVE LOG_LEVE = iota
@@ -29,6 +30,32 @@ func SetLogger(path, appName string, OutLevel LOG_LEVE) error {
 
 	gDebugtrace = &Debugtrace{}
 	return gDebugtrace.Init(path, appName, OutLevel)
+}
+
+func DEBUG(msg ...interface{}) {
+	if gDebugtrace.mLogLevel >= DEBUG_LEVE {
+		gDebugtrace.SetPrefix("Debug:")
+		gDebugtrace.Println(msg...)
+	}
+}
+
+func WARN(msg ...interface{}) {
+	if gDebugtrace.mLogLevel >= WARN_LEVE {
+		gDebugtrace.SetPrefix("Warn:")
+		gDebugtrace.Println(msg...)
+	}
+}
+
+func ERROR(msg ...interface{}) {
+	if gDebugtrace.mLogLevel >= ERROR_LEVE {
+		gDebugtrace.SetPrefix("Error:")
+		gDebugtrace.Println(msg...)
+	}
+}
+
+func FATAL(msg ...interface{}) {
+	gDebugtrace.SetPrefix("Fatal:")
+	gDebugtrace.Println(msg...)
 }
 
 type Debugtrace struct {
@@ -57,7 +84,7 @@ func (d *Debugtrace) ProceLog() {
 	for {
 		d.mLogBuf.Flush()
 		d.rebuildLogFile()
-		time.Sleep(1000 * time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 1000 * FlushGap)
 	}
 }
 
@@ -92,7 +119,7 @@ func (d *Debugtrace) buildLogFile() error {
 
 	d.mLogBuf = bufio.NewWriterSize(d.mLogFD, LogBuffLen)
 	d.SetOutput(d.mLogBuf)
-	d.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	d.SetFlags(log.Ldate | log.Ltime)
 	d.SetPrefix("logger:")
 	return nil
 }
