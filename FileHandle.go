@@ -38,6 +38,9 @@ func (c *Configer) GetConf(confGroup string) (confs map[string]string, err error
 	if c.mFD == nil {
 		return nil, errors.New("Error, Not initializtion.")
 	}
+	if _, err := c.mFD.Seek(0, 0); err != nil {
+		return nil, err
+	}
 	rd := bufio.NewReader(c.mFD)
 	regexpCG := regexp.MustCompile(`^\[[a-zA-Z0-9_]*\]$`)
 	regexpNote := regexp.MustCompile(`^#.*`)
